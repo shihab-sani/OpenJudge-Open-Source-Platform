@@ -40,6 +40,8 @@ public class SandBoxService {
     private Verdict runSingleTest(Submission submission, TaskRules rules, TestCaseRule tc) {
         String image = mapLanguageToImage(rules.getLanguage());
 
+        ensureImageExists(image);
+
         String sourceB64 = Base64.getEncoder()
                 .encodeToString(submission.getSourceCode().getBytes(StandardCharsets.UTF_8));
         String inputB64 = Base64.getEncoder()
@@ -124,6 +126,23 @@ public class SandBoxService {
                 } catch (Exception ignored) {
                     log.warn("Could not remove container {}", containerId);
                 }
+            }
+        }
+    }
+
+    private void ensureImageExists(String image) {
+        try {
+            dockerClient.inspectImageCmd(image).exec();
+        } catch (com.github.dockerjava.api.exception.NotFoundException e) {
+            log.info("Image {} not found locally. Pulling...", image);
+            try {
+                dockerClient.pullImageCmd(image)
+                        .start()
+                        .awaitCompletion(60, TimeUnit.SECONDS);
+                log.info("Image {} pulled successfully.", image);
+            } catch (Exception ex) {
+                log.error("Failed to pull image {}", image, ex);
+                throw new RuntimeException("Could not pull Docker image: " + image);
             }
         }
     }

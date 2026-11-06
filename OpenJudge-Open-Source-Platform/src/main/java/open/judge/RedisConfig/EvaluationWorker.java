@@ -26,18 +26,31 @@ public class EvaluationWorker {
 
     @PostConstruct
     public void start() {
-        // Create consumer group if it does not exist
         try {
             redisTemplate.opsForStream().createGroup(
-                    RedisStreamConfig.STREAM_KEY, RedisStreamConfig.CONSUMER_GROUP
+                    RedisStreamConfig.STREAM_KEY,
+                    ReadOffset.from("0"),
+                    RedisStreamConfig.CONSUMER_GROUP
             );
-        } catch (Exception ignored) {
-            // group already exists
+            log.info("Redis Consumer Group created successfully.");
+        } catch (Exception e) {
+            // Check the error message or cause for BUSYGROUP
+            String msg = e.getMessage() != null ? e.getMessage() : "";
+            if (e.getCause() != null && e.getCause().getMessage() != null) {
+                msg += e.getCause().getMessage();
+            }
+
+            if (msg.contains("BUSYGROUP")) {
+                log.info("Redis Consumer Group already exists. Resuming worker.");
+            } else {
+                log.error("Failed to create consumer group", e);
+            }
         }
 
         Thread worker = new Thread(this::consumeLoop, "evaluation-worker");
         worker.setDaemon(true);
         worker.start();
+        log.info("Evaluation Worker thread started.");
     }
 
     private void consumeLoop() {
@@ -46,13 +59,14 @@ public class EvaluationWorker {
                 List<MapRecord<String, Object, Object>> records =
                         redisTemplate.opsForStream().read(
                                 Consumer.from(RedisStreamConfig.CONSUMER_GROUP, "worker-1"),
-                                StreamReadOptions.empty().count(1).block(Duration.ofSeconds(5)),
+                                StreamReadOptions.empty().count(1).block(Duration.ofSeconds(2)),
                                 StreamOffset.create(RedisStreamConfig.STREAM_KEY, ReadOffset.lastConsumed())
                         );
 
-                if (records == null) continue;
+                if (records == null || records.isEmpty()) continue;
 
                 for (MapRecord<String, Object, Object> record : records) {
+                    log.info("Picked up job from Redis: {}", record.getValue());
                     processRecord(record);
                     redisTemplate.opsForStream().acknowledge(
                             RedisStreamConfig.STREAM_KEY,
@@ -61,20 +75,29 @@ public class EvaluationWorker {
                     );
                 }
             } catch (Exception e) {
-                log.error("Worker loop error", e);
+                log.error("Worker loop error: {}", e.getMessage());
+                try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
             }
         }
     }
 
     private void processRecord(MapRecord<String, Object, Object> record) {
         Long submissionId = Long.valueOf(record.getValue().get("submissionId").toString());
-        Submission submission = submissionRepository.findById(submissionId).orElse(null);
-        if (submission == null) return;
 
+        // ✅ FIX: Use the custom query to fetch the Task eagerly
+        Submission submission = submissionRepository.findByIdWithTask(submissionId).orElse(null);
+
+        if (submission == null) {
+            log.warn("Submission {} not found in DB", submissionId);
+            return;
+        }
+
+        log.info("Evaluating submission: {}", submissionId);
         submission.setStatus(SubmissionStatus.EVALUATING);
         submissionRepository.save(submission);
 
         Verdict verdict = sandboxService.evaluate(submission);
+        log.info("Evaluation complete for submission: {}. Verdict: {}", submissionId, verdict);
 
         submission.setVerdict(verdict);
         submission.setStatus(SubmissionStatus.COMPLETED);

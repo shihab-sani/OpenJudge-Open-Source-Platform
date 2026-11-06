@@ -1,21 +1,36 @@
 package open.judge.GitHubAPIConfig;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 import open.judge.GlobalExceptionHandler.BusinessException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
 import java.util.regex.Pattern;
 
 
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class GitHubService {
-    private final WebClient webClient = WebClient.builder()
-            .baseUrl("https://api.github.com")
-            .defaultHeader("User-Agent", "OpenJudgeOpenSourcePlatform/1.0")
-            .build();
+    private final WebClient webClient;
+
+    public GitHubService(@Value("${github.token:}") String githubToken) {
+        WebClient.Builder builder = WebClient.builder()
+                .baseUrl("https://api.github.com")
+                // GitHub recommends using your GitHub username as the User-Agent
+                .defaultHeader("User-Agent", "shihab-sani")
+                .defaultHeader("Accept", "application/vnd.github+json")
+                .defaultHeader("X-GitHub-Api-Version", "2022-11-28");
+
+        // If a token is provided in application.yml, attach it as a Bearer token
+        if (githubToken != null && !githubToken.trim().isEmpty()) {
+            builder.defaultHeader("Authorization", "Bearer " + githubToken);
+        }
+
+        this.webClient = builder.build();
+    }
 
     public GitHubRepoInfo fetchRepoInfo(String owner, String repo) {
         try {
@@ -24,6 +39,15 @@ public class GitHubService {
                     .retrieve()
                     .bodyToMono(GitHubRepoInfo.class)
                     .block(Duration.ofSeconds(5));
+        } catch (WebClientResponseException e) {
+            // Log the exact rate-limit headers to help debug if it fails again
+            String remaining = e.getHeaders().getFirst("x-ratelimit-remaining");
+            String resetTime = e.getHeaders().getFirst("x-ratelimit-reset");
+            log.error("GitHub API Error. Status: {}, Remaining Requests: {}, Reset Time: {}",
+                    e.getStatusCode(), remaining, resetTime);
+
+            throw new BusinessException("GITHUB_API_ERROR",
+                    "GitHub API rejected the request: " + e.getStatusText());
         } catch (Exception e) {
             throw new BusinessException("GITHUB_API_ERROR",
                     "Could not fetch repository information: " + e.getMessage());
