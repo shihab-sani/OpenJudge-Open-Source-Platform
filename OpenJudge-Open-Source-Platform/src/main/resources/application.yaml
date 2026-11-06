@@ -1,27 +1,17 @@
 spring:
   application:
     name: OpenJudge-Open-Source-Platform
-  datasource:
-    url: jdbc:postgresql://localhost:5001/open_judge_db
-    username: root
-    password: Shihab14032001
-    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: update          # auto-update schema from entities (development only)[reference:1]
     show-sql: false
     open-in-view: false
-    properties:
-      hibernate:
-        format_sql: false
-  data:
-    redis:
-      host: localhost
-      port: 6001
-      password: Shihab14032001
 
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+github:
+  token: ${GITHUB_TOKEN:""}
