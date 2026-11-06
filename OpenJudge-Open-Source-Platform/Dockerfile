@@ -9,4 +9,4 @@ FROM eclipse-temurin:25-jre AS runner
 WORKDIR /app
 COPY --from=builder /app/target/OpenJudge-Open-Source-Platform-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 4000
-ENTRYPOINT ["java", "--enable-native-access=ALL-UNNAMED", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx400m", "--enable-native-access=ALL-UNNAMED", "-jar", "app.jar"]
