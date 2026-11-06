@@ -1,6 +1,18 @@
 ## OpenJudge - Automated Open-Source Contribution Platform
 
-An event-driven, asynchronous backend platform that bridges the gap between open-source maintainers and contributors. The application allows users to register projects, publish contribution tasks with automated evaluation rules, and submit code that is safely executed and verified inside isolated Docker sandboxes.
+## 💡 The Problem & Inspiration
+Finding open-source projects to contribute to is hard. Contributors often struggle to find projects that match their skill level, and they have no immediate way of knowing if their code actually solves the maintainer's specific requirement. On the other hand, maintainers are overwhelmed by PRs that don't pass basic tests. 
+
+**OpenJudge** is inspired by competitive programming platforms like Codeforces and LeetCode. It bridges the gap by allowing maintainers to post specific "tasks" with test cases and rules. Contributors can find these tasks, submit code directly via the API, and have their code automatically verified in an isolated Docker sandbox, receiving an instant `ACCEPTED` or `WRONG_ANSWER` verdict.
+
+---
+## 🛠️ Tech Stack
+*   **Backend Framework:** Java 25, Spring Boot 4
+*   **Database:** PostgreSQL 16 (Relational data, JPA/Hibernate)
+*   **Message Broker:** Redis 7 (Streams for asynchronous job processing)
+*   **Sandboxing:** Docker & `docker-java` (Isolated code execution)
+*   **API Documentation:** Springdoc OpenAPI (Swagger UI)
+*   **External APIs:** GitHub REST API (For repository validation)
 
 ## System Architecture & Services
 
