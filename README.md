@@ -133,4 +133,3 @@ The `EvaluationWorker` consumes jobs from Redis and uses `SandBoxService` to eva
 ## 8. AI / Tool Usage
 
 - AI-assisted coding tools were used to debug Docker socket mounting, resolve Hibernate lazy-loading proxy errors, and generate boilerplate code (DTOs, mappers). All architectural decisions regarding the async queue and Docker isolation were reviewed, understood, and manually implemented by the candidate.
-```
